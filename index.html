@@ -189,6 +189,7 @@
     text-align: center;
   }
   .last-check {
+    white-space: pre-line;
     margin-top: .55rem;
     font-size: .72rem;
     color: var(--muted);
@@ -518,7 +519,7 @@
       </svg>
     </div>
     <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: <a href="https://instagram.com/mumupoikatsu" target="_blank" rel="noopener noreferrer">mumupoikatsu</a></span>
-    <span>© mumupoikatsu · 回線チェック v2.0</span>
+    <span>© mumupoikatsu · 回線チェック v2.1</span>
   </footer>
 </main>
 <div class="parade" id="parade" aria-hidden="true"></div>
@@ -768,21 +769,33 @@
     conn.addEventListener?.("change", refreshWifiNote);
   }
 
-  // ---- 前回チェックの記録(この端末のlocalStorageのみ、外部送信なし) ----
+  // ---- チェックの記録・直近3件(この端末のlocalStorageのみ、外部送信なし) ----
   const lastCheckEl = $("last-check");
-  const showLastCheck = () => {
+  const loadHistory = () => {
     try {
-      const rec = JSON.parse(localStorage.getItem("lastCheck"));
-      if (!rec || !rec.t) return;
+      const h = JSON.parse(localStorage.getItem("checkHistory"));
+      if (Array.isArray(h)) return h;
+      // 旧形式(1件のみ)からの引き継ぎ
+      const old = JSON.parse(localStorage.getItem("lastCheck"));
+      return old && old.t ? [old] : [];
+    } catch { return []; }
+  };
+  const showLastCheck = () => {
+    const h = loadHistory();
+    if (h.length === 0) return;
+    const labels = ["前回のチェック", "前々回", "その前"];
+    lastCheckEl.textContent = h.slice(0, 3).map((rec, i) => {
       const d = new Date(rec.t).toLocaleDateString("ja-JP",
         { year: "numeric", month: "long", day: "numeric" });
-      lastCheckEl.textContent = `前回のチェック: ${d}(${rec.mb}MB)`;
-      lastCheckEl.hidden = false;
-    } catch {}
+      return `${labels[i]}: ${d}(${rec.mb}MB)`;
+    }).join("\n");
+    lastCheckEl.hidden = false;
   };
   const saveLastCheck = (mb) => {
     try {
-      localStorage.setItem("lastCheck", JSON.stringify({ t: Date.now(), mb }));
+      const h = [{ t: Date.now(), mb }, ...loadHistory()].slice(0, 3);
+      localStorage.setItem("checkHistory", JSON.stringify(h));
+      localStorage.removeItem("lastCheck");
     } catch {}
     showLastCheck();
   };
