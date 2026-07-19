@@ -261,6 +261,48 @@
   }
   .stats b { font-weight: 700; color: var(--ink); }
 
+  /* ---- next-check plan ---- */
+  .plan-row {
+    display: flex;
+    gap: .6rem;
+    margin-top: .6rem;
+  }
+  .plan-row input[type="date"] {
+    font-family: inherit;
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--ink);
+    background: #FFF9FA;
+    border: 1.5px solid var(--line);
+    border-radius: .8rem;
+    padding: .5rem .7rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .plan-row input[type="date"]:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .plan-row button {
+    font-family: inherit;
+    font-size: .86rem;
+    font-weight: 700;
+    color: var(--accent-deep);
+    background: #FFF3F6;
+    border: 1.5px solid #FADCE4;
+    border-radius: 999px;
+    padding: .5rem 1rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform .1s, background .2s;
+  }
+  .plan-row button:active { transform: scale(.95); background: #FFE7EE; }
+  .plan-note {
+    margin-top: .6rem;
+    font-size: .72rem;
+    color: var(--muted);
+  }
+
   .notes {
     font-size: .72rem;
     color: var(--muted);
@@ -357,6 +399,15 @@
     </div>
   </section>
 
+  <section class="card" aria-label="つぎのチェックの予定">
+    <div class="field-label">つぎのチェックの予定</div>
+    <div class="plan-row">
+      <input id="plan-date" type="date" aria-label="つぎにチェックする日">
+      <button type="button" id="plan-add">カレンダーに追加</button>
+    </div>
+    <p class="plan-note">予定ファイルがカレンダーアプリに渡され、当日の朝に通知が届きます。この画面の外に情報は送られません。</p>
+  </section>
+
   <ul class="notes">
     <li>※ えらんだ量のぶんだけ、実際にデータ通信を行います。いちどにチェックできるのは 2GB までです。</li>
     <li>※ 通信のしくみ上、えらんだ量より少しだけ多くデータを使うことがあります。</li>
@@ -381,7 +432,7 @@
         </g>
       </svg>
     </div>
-    <span>回線チェック v1.0</span>
+    <span>回線チェック v1.1</span>
   </footer>
 </main>
 
@@ -390,7 +441,9 @@
   "use strict";
   const MB = 1e6;                  // 表記どおりの10進メガバイト
   const MAX_MB = 2000;             // 1回の上限(2GB)
-  const CHUNK = 50 * MB;           // 1リクエストあたりの取得量
+  const WORKERS = 5;               // 並列ストリーム数
+  const UNIT = 25 * MB;            // 1リクエストあたりの取得量
+  const MAX_PASSES = 3;            // 取りこぼし再取得の上限(無限リトライ防止)
   const ENDPOINT = "https://speed.cloudflare.com/__down?bytes=";
 
   const $ = (id) => document.getElementById(id);
@@ -511,24 +564,38 @@
     aborter = new AbortController();
 
     try {
-      while (running && received < targetBytes) {
-        const want = Math.min(targetBytes - received, CHUNK);
-        const res = await fetch(ENDPOINT + want, {
-          cache: "no-store",
-          signal: aborter.signal,
-        });
-        if (!res.ok || !res.body) throw new Error("http " + res.status);
-        const reader = res.body.getReader();
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          received += value.byteLength;
-          const now = performance.now();
-          samples.push([now, received]);
-          while (samples.length > 2 && now - samples[0][0] > 3000) samples.shift();
-          queuePaint();
-          if (received >= targetBytes) { aborter.abort(); break; }
-        }
+      // 要求バイト数の合計が目標値ちょうどになるよう仕事を分割し、
+      // 並列ストリームで取得する。中断以外で目標を超えて要求することはない。
+      let passes = 0;
+      while (running && received < targetBytes && passes < MAX_PASSES) {
+        passes++;
+        const units = [];
+        let rem = targetBytes - received;
+        while (rem > 0) { const u = Math.min(rem, UNIT); units.push(u); rem -= u; }
+        const worker = async () => {
+          for (;;) {
+            const want = units.shift();
+            if (want === undefined || !running) return;
+            const res = await fetch(ENDPOINT + want, {
+              cache: "no-store",
+              signal: aborter.signal,
+            });
+            if (!res.ok || !res.body) throw new Error("http " + res.status);
+            const reader = res.body.getReader();
+            for (;;) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              received += value.byteLength;
+              const now = performance.now();
+              samples.push([now, received]);
+              while (samples.length > 2 && now - samples[0][0] > 3000) samples.shift();
+              queuePaint();
+            }
+          }
+        };
+        await Promise.all(
+          Array.from({ length: Math.min(WORKERS, units.length) }, worker)
+        );
       }
       if (received >= targetBytes) {
         statusEl.className = "status ok";
@@ -536,11 +603,8 @@
         gaugeCard.classList.add("done");
       }
     } catch (err) {
-      if (err && err.name === "AbortError" && received >= targetBytes) {
-        statusEl.className = "status ok";
-        statusEl.textContent = "チェック完了!回線は元気に動いています";
-        gaugeCard.classList.add("done");
-      } else if (err && err.name === "AbortError") {
+      aborter.abort();   // 1本の失敗で残りのストリームも止め、余計な通信を防ぐ
+      if (err && err.name === "AbortError") {
         statusEl.textContent = "とちゅうでやめました";
       } else {
         statusEl.textContent = "うまく通信できませんでした。電波のよいところで、もういちど試してみてください。";
@@ -556,6 +620,50 @@
   stopEl.addEventListener("click", () => {
     running = false;
     aborter?.abort();
+  });
+
+  // ---- つぎのチェックの予定(カレンダー .ics 生成、すべて端末内で完結) ----
+  const planDate = $("plan-date");
+  {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);   // 目安として30日後を初期値に
+    planDate.value = [
+      d.getFullYear(),
+      String(d.getMonth() + 1).padStart(2, "0"),
+      String(d.getDate()).padStart(2, "0"),
+    ].join("-");
+  }
+
+  $("plan-add").addEventListener("click", () => {
+    if (!planDate.value) return;
+    const ymd = planDate.value.replace(/-/g, "");
+    const ics = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//kaisen-check//JP",
+      "BEGIN:VEVENT",
+      "UID:" + ymd + "-" + Date.now() + "@kaisen-check",
+      "DTSTAMP:" + new Date().toISOString().replace(/[-:]|\.\d{3}/g, ""),
+      "DTSTART:" + ymd + "T090000",
+      "DTEND:" + ymd + "T091500",
+      "SUMMARY:回線チェックの日",
+      "DESCRIPTION:回線チェックをひらく → https://northwood1834.github.io/kaisen-check/",
+      "BEGIN:VALARM",
+      "ACTION:DISPLAY",
+      "DESCRIPTION:回線チェックの日",
+      "TRIGGER:-PT0M",
+      "END:VALARM",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+    const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "kaisen-check.ics";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
   });
 
   refreshChips();
