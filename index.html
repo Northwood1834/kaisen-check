@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://speed.cloudflare.com; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <meta name="description" content="データを少しだけ流して、回線がきちんと動いているかたしかめるツールです。">
 <title>回線チェック</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='9' y='4' width='14' height='24' rx='6' fill='%23FFD9E2'/%3E%3Crect x='9' y='14' width='14' height='14' rx='6' fill='%23FF9BB5'/%3E%3Ccircle cx='14' cy='22' r='1.6' fill='%23fff'/%3E%3Ccircle cx='19' cy='18' r='1.2' fill='%23fff'/%3E%3C/svg%3E">
@@ -492,7 +494,7 @@
       </svg>
     </div>
     <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: <a href="https://instagram.com/mumupoikatsu" target="_blank" rel="noopener noreferrer">mumupoikatsu</a></span>
-    <span>© mumupoikatsu · 回線チェック v1.6</span>
+    <span>© mumupoikatsu · 回線チェック v1.7</span>
   </footer>
 </main>
 <div class="parade" id="parade" aria-hidden="true"></div>
@@ -500,6 +502,12 @@
 <script>
 (() => {
   "use strict";
+  // クリックジャッキング対策: iframe埋め込み時は一切動作させない
+  if (window.top !== window.self) {
+    document.body.textContent =
+      "このページは埋め込み表示では動きません。ブラウザで直接ひらいてください。";
+    return;
+  }
   const MB = 1e6;                  // 表記どおりの10進メガバイト
   const MAX_MB = 2000;             // 1回の上限(2GB)
   const WORKERS = 6;               // 並列ストリーム数
