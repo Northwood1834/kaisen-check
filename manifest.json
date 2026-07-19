@@ -1,0 +1,14 @@
+{
+  "name": "回線チェック。",
+  "short_name": "回線チェック",
+  "description": "データを少しだけ流して、回線がきちんと動いているかたしかめるツールです。",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#FBF3F1",
+  "theme_color": "#FBF3F1",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

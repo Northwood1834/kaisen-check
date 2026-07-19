@@ -3,8 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://speed.cloudflare.com; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://speed.cloudflare.com; manifest-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#FBF3F1">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
 <meta name="description" content="データを少しだけ流して、回線がきちんと動いているかたしかめるツールです。">
 <title>回線チェック</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='9' y='4' width='14' height='24' rx='6' fill='%23FFD9E2'/%3E%3Crect x='9' y='14' width='14' height='14' rx='6' fill='%23FF9BB5'/%3E%3Ccircle cx='14' cy='22' r='1.6' fill='%23fff'/%3E%3Ccircle cx='19' cy='18' r='1.2' fill='%23fff'/%3E%3C/svg%3E">
@@ -175,6 +178,24 @@
     padding: .2rem .6rem;
   }
   [hidden] { display: none !important; }
+
+  .wifi-note {
+    font-size: .78rem;
+    color: #B08968;
+    background: #FFF8EE;
+    border: 1.5px solid #F5E3CC;
+    border-radius: 1rem;
+    padding: .6rem .9rem;
+    text-align: center;
+  }
+  .last-check {
+    margin-top: .55rem;
+    font-size: .72rem;
+    color: var(--muted);
+    text-align: center;
+    border-top: 1px dashed var(--line);
+    padding-top: .55rem;
+  }
 
   /* ---- gauge (soda glass) ---- */
   .gauge-wrap { position: relative; }
@@ -441,6 +462,8 @@
     </div>
   </section>
 
+  <p class="wifi-note" id="wifi-note" hidden>Wi-Fi につながっているようです。モバイル回線をチェックしたいときは、Wi-Fi を切ってからどうぞ。</p>
+
   <button id="start" type="button">チェックをはじめる</button>
   <button id="stop" type="button" hidden>とちゅうでやめる</button>
 
@@ -458,6 +481,7 @@
       受信 <b id="bytes">0</b> バイト(<b id="mb">0.000000</b> MB)<br>
       いまの速さ <b id="mbps">-</b> Mbps
     </div>
+    <div class="last-check" id="last-check" hidden></div>
   </section>
 
   <section class="card" aria-label="つぎのチェックの予定">
@@ -472,7 +496,7 @@
   <ul class="notes">
     <li>※ えらんだ量のぶんだけ、実際にデータ通信を行います。いちどにチェックできるのは 2GB までです。</li>
     <li>※ 通信のしくみ上、えらんだ量より少しだけ多くデータを使うことがあります。</li>
-    <li>※ チェックはこの画面の中だけで行われ、結果や記録がどこかへ送られることはありません。</li>
+    <li>※ チェックはこの画面の中だけで行われ、前回の記録もこの端末の中にだけ残ります。どこかへ送られることはありません。</li>
   </ul>
 
   <footer>
@@ -494,7 +518,7 @@
       </svg>
     </div>
     <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: <a href="https://instagram.com/mumupoikatsu" target="_blank" rel="noopener noreferrer">mumupoikatsu</a></span>
-    <span>© mumupoikatsu · 回線チェック v1.7</span>
+    <span>© mumupoikatsu · 回線チェック v2.0</span>
   </footer>
 </main>
 <div class="parade" id="parade" aria-hidden="true"></div>
@@ -711,6 +735,7 @@
         statusEl.className = "status ok";
         statusEl.textContent = "チェック完了!回線は元気に動いています";
         gaugeCard.classList.add("done");
+        saveLastCheck(mb);
       }
     } catch (err) {
       aborter.abort();   // 1本の失敗で残りのストリームも止め、余計な通信を防ぐ
@@ -731,6 +756,37 @@
     running = false;
     aborter?.abort();
   });
+
+  // ---- Wi-Fi接続の気づき(検出できる端末のみ / Android Chrome等) ----
+  const conn = navigator.connection;
+  const wifiNote = $("wifi-note");
+  const refreshWifiNote = () => {
+    wifiNote.hidden = !(conn && conn.type === "wifi");
+  };
+  if (conn) {
+    refreshWifiNote();
+    conn.addEventListener?.("change", refreshWifiNote);
+  }
+
+  // ---- 前回チェックの記録(この端末のlocalStorageのみ、外部送信なし) ----
+  const lastCheckEl = $("last-check");
+  const showLastCheck = () => {
+    try {
+      const rec = JSON.parse(localStorage.getItem("lastCheck"));
+      if (!rec || !rec.t) return;
+      const d = new Date(rec.t).toLocaleDateString("ja-JP",
+        { year: "numeric", month: "long", day: "numeric" });
+      lastCheckEl.textContent = `前回のチェック: ${d}(${rec.mb}MB)`;
+      lastCheckEl.hidden = false;
+    } catch {}
+  };
+  const saveLastCheck = (mb) => {
+    try {
+      localStorage.setItem("lastCheck", JSON.stringify({ t: Date.now(), mb }));
+    } catch {}
+    showLastCheck();
+  };
+  showLastCheck();
 
   // ---- つぎのチェックの予定(カレンダー .ics 生成、すべて端末内で完結) ----
   const planDate = $("plan-date");
