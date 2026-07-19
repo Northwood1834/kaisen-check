@@ -311,6 +311,45 @@
   }
   .notes li { list-style: none; text-indent: -1em; padding-left: 1em; }
 
+  /* ---- parade (チェック中のおともだち) ---- */
+  .parade {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: 3.2rem;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .walker {
+    position: absolute;
+    bottom: .15rem;
+    left: 100%;
+    font-size: 1.7rem;
+    animation: walk linear forwards;
+    will-change: transform;
+  }
+  .walker .body {
+    display: inline-block;
+    animation: bob .45s ease-in-out infinite alternate;
+  }
+  .walker.dance .body { animation: dance 1.1s ease-in-out infinite; }
+  @keyframes walk {
+    to { transform: translateX(calc(-100vw - 4rem)); }
+  }
+  @keyframes bob {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-5px); }
+  }
+  @keyframes dance {
+    0%, 100% { transform: rotate(0deg) translateY(0); }
+    25%      { transform: rotate(-14deg) translateY(-7px); }
+    50%      { transform: rotate(0deg) translateY(0); }
+    75%      { transform: rotate(14deg) translateY(-7px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .parade { display: none; }
+  }
+
   /* ---- footer & cat ---- */
   footer {
     margin-top: 1.2rem;
@@ -446,17 +485,20 @@
       </svg>
     </div>
     <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: mumupoikatsu</span>
-    <span>© mumupoikatsu · 回線チェック v1.2</span>
+    <span>© mumupoikatsu · 回線チェック v1.3</span>
   </footer>
 </main>
+<div class="parade" id="parade" aria-hidden="true"></div>
 
 <script>
 (() => {
   "use strict";
   const MB = 1e6;                  // 表記どおりの10進メガバイト
   const MAX_MB = 2000;             // 1回の上限(2GB)
-  const WORKERS = 5;               // 並列ストリーム数
-  const UNIT = 25 * MB;            // 1リクエストあたりの取得量
+  const WORKERS = 6;               // 並列ストリーム数
+  // 小さな目標でも全ストリームが立つよう、分割サイズは目標量に応じて可変
+  const unitFor = (total) =>
+    Math.max(2 * MB, Math.min(25 * MB, Math.ceil(total / (WORKERS * 2))));
   const MAX_PASSES = 3;            // 取りこぼし再取得の上限(無限リトライ防止)
   const ENDPOINT = "https://speed.cloudflare.com/__down?bytes=";
 
@@ -475,6 +517,7 @@
   let wakeLock = null;
   let samples = [];        // [time(ms), 累計バイト] 直近3秒ぶん
   let uiQueued = false;
+  let lastMbps = 0;
 
   const getAmount = () => {
     const n = parseInt(amountEl.value.replace(/[^0-9]/g, ""), 10);
@@ -536,12 +579,48 @@
       const first = samples[0], last = samples[samples.length - 1];
       const dt = (last[0] - first[0]) / 1000;
       if (dt > 0.2) {
-        mbpsEl.textContent = ((last[1] - first[1]) * 8 / dt / 1e6).toFixed(2);
+        lastMbps = (last[1] - first[1]) * 8 / dt / 1e6;
+        mbpsEl.textContent = lastMbps.toFixed(2);
       }
     }
   };
   const queuePaint = () => {
     if (!uiQueued) { uiQueued = true; requestAnimationFrame(paint); }
+  };
+
+  // ---- パレード: チェック中、速度に合わせて画面下を動物が歩く ----
+  const paradeEl = $("parade");
+  const noMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let paradeTimer = null;
+  const spawnWalker = () => {
+    // 遅い回線ではのんびり組、速い回線では駆け足組が出てくる
+    const slowpokes = ["🐢", "🐌", "🐈", "🦔"];
+    const speedsters = ["🐇", "🐕", "🐿️", "🦆"];
+    const pool = lastMbps < 8 ? slowpokes : speedsters;
+    const w = document.createElement("span");
+    w.className = "walker" + (Math.random() < 0.3 ? " dance" : "");
+    w.innerHTML = "<span class='body'>" +
+      pool[Math.floor(Math.random() * pool.length)] + "</span>";
+    // 横断時間: 速いほどきびきび(6〜18秒)
+    const dur = Math.min(18, Math.max(6, 16 - lastMbps / 12));
+    w.style.animationDuration = dur + "s";
+    w.addEventListener("animationend", () => w.remove());
+    paradeEl.appendChild(w);
+  };
+  const paradeStart = () => {
+    if (noMotion) return;
+    const tick = () => {
+      spawnWalker();
+      // 出てくる間隔も速度に応じて(1.8〜6秒)
+      const wait = Math.min(6000, Math.max(1800, 5500 - lastMbps * 25));
+      paradeTimer = setTimeout(tick, wait);
+    };
+    paradeTimer = setTimeout(tick, 1200);
+  };
+  const paradeStop = () => {
+    clearTimeout(paradeTimer);
+    paradeTimer = null;
+    // 画面上の子たちは最後まで歩いて退場する
   };
 
   const setRunning = (on) => {
@@ -553,6 +632,7 @@
     amountEl.disabled = on;
     $("clear").disabled = on;
     refreshChips();
+    if (on) paradeStart(); else paradeStop();
   };
 
   const acquireWakeLock = async () => {
@@ -585,7 +665,8 @@
         passes++;
         const units = [];
         let rem = targetBytes - received;
-        while (rem > 0) { const u = Math.min(rem, UNIT); units.push(u); rem -= u; }
+        const unit = unitFor(rem);
+        while (rem > 0) { const u = Math.min(rem, unit); units.push(u); rem -= u; }
         const worker = async () => {
           for (;;) {
             const want = units.shift();
