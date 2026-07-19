@@ -21,6 +21,8 @@
     --line: #F3E2E7;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  /* 連打時のiOSダブルタップズームを抑止(ピンチズームは殺さない) */
+  button, input, a { touch-action: manipulation; }
   html { -webkit-text-size-adjust: 100%; }
   body {
     font-family: "Hiragino Maru Gothic ProN", "HG Maru Gothic M-PRO",
@@ -490,7 +492,7 @@
       </svg>
     </div>
     <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: <a href="https://instagram.com/mumupoikatsu" target="_blank" rel="noopener noreferrer">mumupoikatsu</a></span>
-    <span>© mumupoikatsu · 回線チェック v1.5</span>
+    <span>© mumupoikatsu · 回線チェック v1.6</span>
   </footer>
 </main>
 <div class="parade" id="parade" aria-hidden="true"></div>
