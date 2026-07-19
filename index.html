@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="データを少しだけ流して、回線がきちんと動いているかたしかめるツールです。">
+<title>回線チェック</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='9' y='4' width='14' height='24' rx='6' fill='%23FFD9E2'/%3E%3Crect x='9' y='14' width='14' height='14' rx='6' fill='%23FF9BB5'/%3E%3Ccircle cx='14' cy='22' r='1.6' fill='%23fff'/%3E%3Ccircle cx='19' cy='18' r='1.2' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #FBF3F1;
+    --card: #FFFFFF;
+    --ink: #4D3B43;
+    --muted: #9C8590;
+    --accent: #EE8FA6;
+    --accent-deep: #E27691;
+    --fill-1: #FFC2D1;
+    --fill-2: #FF9BB5;
+    --ok: #7FB5A8;
+    --line: #F3E2E7;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: "Hiragino Maru Gothic ProN", "HG Maru Gothic M-PRO",
+      "Zen Maru Gothic", "BIZ UDPGothic", "Yu Gothic", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100dvh;
+    display: flex;
+    justify-content: center;
+  }
+  main {
+    width: 100%;
+    max-width: 26rem;
+    padding: 2rem 1.25rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+
+  /* ---- header ---- */
+  header h1 {
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: .06em;
+  }
+  header h1 .dot { color: var(--accent); }
+  header p {
+    margin-top: .35rem;
+    font-size: .84rem;
+    color: var(--muted);
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 1.4rem;
+    padding: 1.2rem 1.2rem 1.3rem;
+    box-shadow: 0 4px 18px rgba(226, 118, 145, .07);
+  }
+
+  /* ---- amount block ---- */
+  .field-label {
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: .08em;
+  }
+  .amount {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: .4rem;
+    margin: .5rem 0 .9rem;
+  }
+  .amount input {
+    font-family: inherit;
+    font-size: 3rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    background: none;
+    border: none;
+    border-bottom: 3px solid var(--line);
+    border-radius: 0;
+    width: 5.2ch;
+    text-align: right;
+    transition: border-color .2s;
+  }
+  .amount input:focus {
+    outline: none;
+    border-bottom-color: var(--accent);
+  }
+  .amount .unit { font-size: 1.1rem; font-weight: 700; color: var(--muted); }
+  .amount input.pop { animation: pop .25s ease; }
+  @keyframes pop {
+    40% { transform: scale(1.12); }
+    100% { transform: scale(1); }
+  }
+
+  .chips {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: .5rem;
+  }
+  .chips button {
+    font-family: inherit;
+    font-size: .86rem;
+    font-weight: 700;
+    color: var(--accent-deep);
+    background: #FFF3F6;
+    border: 1.5px solid #FADCE4;
+    border-radius: 999px;
+    padding: .55rem 0;
+    cursor: pointer;
+    transition: transform .1s, background .2s;
+  }
+  .chips button:active { transform: scale(.93); background: #FFE7EE; }
+  .chips button:disabled { opacity: .4; cursor: default; transform: none; }
+  .field-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: .7rem;
+    min-height: 1.2rem;
+  }
+  .hint { font-size: .74rem; color: var(--accent-deep); }
+  .clear {
+    font-family: inherit;
+    font-size: .74rem;
+    color: var(--muted);
+    background: none;
+    border: none;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    padding: .2rem;
+  }
+
+  /* ---- start ---- */
+  #start {
+    font-family: inherit;
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: .12em;
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+    border: none;
+    border-radius: 999px;
+    padding: 1rem;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(226, 118, 145, .35);
+    transition: transform .12s, box-shadow .12s, opacity .2s;
+  }
+  #start:active { transform: translateY(2px); box-shadow: 0 3px 8px rgba(226,118,145,.3); }
+  #start:disabled { opacity: .45; cursor: default; box-shadow: none; }
+  #stop {
+    font-family: inherit;
+    font-size: .8rem;
+    color: var(--muted);
+    background: none;
+    border: none;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    align-self: center;
+    padding: .2rem .6rem;
+  }
+  [hidden] { display: none !important; }
+
+  /* ---- gauge (soda glass) ---- */
+  .gauge-wrap { position: relative; }
+  .gauge {
+    position: relative;
+    height: 3.4rem;
+    background: #FDF0F3;
+    border: 1.5px solid #F8DFE6;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .gauge-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0%;
+    background: linear-gradient(180deg, var(--fill-1), var(--fill-2));
+    border-radius: 999px;
+    transition: width .25s ease-out;
+  }
+  .bubble {
+    position: absolute;
+    bottom: -8px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .75);
+    opacity: 0;
+  }
+  .running .bubble { animation: rise 1.6s linear infinite; }
+  .bubble:nth-child(2) { left: 12%; animation-delay: 0s; }
+  .bubble:nth-child(3) { left: 34%; width: 5px; height: 5px; animation-delay: .5s; animation-duration: 1.3s; }
+  .bubble:nth-child(4) { left: 58%; animation-delay: .9s; }
+  .bubble:nth-child(5) { left: 79%; width: 4px; height: 4px; animation-delay: .3s; animation-duration: 1.1s; }
+  .bubble:nth-child(6) { left: 91%; width: 5px; height: 5px; animation-delay: 1.1s; }
+  @keyframes rise {
+    0%   { transform: translateY(0); opacity: 0; }
+    15%  { opacity: .9; }
+    100% { transform: translateY(-3.6rem); opacity: 0; }
+  }
+  .gauge-pct {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    text-shadow: 0 1px 0 rgba(255,255,255,.6);
+  }
+  .sparkles {
+    position: absolute;
+    inset: -1rem 0 auto;
+    text-align: center;
+    pointer-events: none;
+  }
+  .sparkles span {
+    display: inline-block;
+    margin: 0 .5rem;
+    color: var(--accent);
+    opacity: 0;
+  }
+  .done .sparkles span { animation: sparkle .9s ease forwards; }
+  .done .sparkles span:nth-child(2) { animation-delay: .15s; }
+  .done .sparkles span:nth-child(3) { animation-delay: .3s; }
+  @keyframes sparkle {
+    0%   { transform: translateY(.6rem) scale(.4); opacity: 0; }
+    50%  { opacity: 1; }
+    100% { transform: translateY(-.5rem) scale(1.1); opacity: 0; }
+  }
+
+  /* ---- stats ---- */
+  .status {
+    margin-top: .8rem;
+    font-size: .92rem;
+    font-weight: 700;
+    text-align: center;
+    min-height: 1.5rem;
+  }
+  .status.ok { color: var(--ok); }
+  .stats {
+    margin-top: .5rem;
+    font-size: .74rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    line-height: 1.9;
+  }
+  .stats b { font-weight: 700; color: var(--ink); }
+
+  .notes {
+    font-size: .72rem;
+    color: var(--muted);
+    padding: 0 .4rem;
+  }
+  .notes li { list-style: none; text-indent: -1em; padding-left: 1em; }
+
+  /* ---- footer & cat ---- */
+  footer {
+    margin-top: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .3rem;
+    color: var(--muted);
+    font-size: .68rem;
+  }
+  .cat { position: relative; width: 64px; height: 44px; }
+  .cat svg { width: 100%; height: 100%; }
+  .cat .eye-open { display: none; }
+  body.running .cat .eye-open { display: block; }
+  body.running .cat .eye-shut { display: none; }
+  .cat .zzz {
+    position: absolute;
+    top: -6px;
+    right: -14px;
+    font-size: .7rem;
+    color: #D8B9C4;
+    animation: floatz 2.6s ease-in-out infinite;
+  }
+  body.running .cat .zzz { display: none; }
+  @keyframes floatz {
+    0%, 100% { transform: translateY(0); opacity: .4; }
+    50% { transform: translateY(-4px); opacity: 1; }
+  }
+  .cat .tail {
+    transform-origin: 6px 34px;
+  }
+  body.running .cat .tail { animation: wag 1s ease-in-out infinite; }
+  @keyframes wag {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(14deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .running .bubble, .done .sparkles span, .cat .zzz,
+    body.running .cat .tail, .amount input.pop { animation: none; }
+    .gauge-fill { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>回線チェック<span class="dot">。</span></h1>
+    <p>データを少しだけ流して、回線がきちんと動いているかたしかめるツールです。</p>
+  </header>
+
+  <section class="card" aria-label="チェックする量">
+    <div class="field-label">チェックする量</div>
+    <div class="amount">
+      <input id="amount" type="text" inputmode="numeric" autocomplete="off"
+             value="0" aria-label="チェックする量(メガバイト)">
+      <span class="unit">MB</span>
+    </div>
+    <div class="chips">
+      <button type="button" data-add="100">+100</button>
+      <button type="button" data-add="300">+300</button>
+      <button type="button" data-add="500">+500</button>
+      <button type="button" data-add="1000">+1GB</button>
+    </div>
+    <div class="field-foot">
+      <span class="hint" id="hint" aria-live="polite"></span>
+      <button type="button" class="clear" id="clear">リセット</button>
+    </div>
+  </section>
+
+  <button id="start" type="button">チェックをはじめる</button>
+  <button id="stop" type="button" hidden>とちゅうでやめる</button>
+
+  <section class="card gauge-wrap" aria-label="チェックの進みぐあい">
+    <div class="sparkles" aria-hidden="true"><span>✦</span><span>✧</span><span>✦</span></div>
+    <div class="gauge">
+      <div class="gauge-fill" id="fill"></div>
+      <span class="bubble" aria-hidden="true"></span><span class="bubble" aria-hidden="true"></span>
+      <span class="bubble" aria-hidden="true"></span><span class="bubble" aria-hidden="true"></span>
+      <span class="bubble" aria-hidden="true"></span>
+      <div class="gauge-pct" id="pct">0%</div>
+    </div>
+    <div class="status" id="status" aria-live="polite"></div>
+    <div class="stats" aria-live="off">
+      受信 <b id="bytes">0</b> バイト(<b id="mb">0.000000</b> MB)<br>
+      いまの速さ <b id="mbps">-</b> Mbps
+    </div>
+  </section>
+
+  <ul class="notes">
+    <li>※ えらんだ量のぶんだけ、実際にデータ通信を行います。いちどにチェックできるのは 2GB までです。</li>
+    <li>※ 通信のしくみ上、えらんだ量より少しだけ多くデータを使うことがあります。</li>
+    <li>※ チェックはこの画面の中だけで行われ、結果や記録がどこかへ送られることはありません。</li>
+  </ul>
+
+  <footer>
+    <div class="cat" aria-hidden="true">
+      <span class="zzz">z z</span>
+      <svg viewBox="0 0 64 44">
+        <path class="tail" d="M8 36 Q1 32 4 25" stroke="#C9A2B0" stroke-width="4"
+              fill="none" stroke-linecap="round"/>
+        <ellipse cx="34" cy="32" rx="24" ry="12" fill="#DDB9C6"/>
+        <circle cx="47" cy="20" r="11" fill="#DDB9C6"/>
+        <path d="M39 12 L41 4 L46 10 Z" fill="#DDB9C6"/>
+        <path d="M55 12 L53 4 L48 10 Z" fill="#DDB9C6"/>
+        <g class="eye-shut" stroke="#4D3B43" stroke-width="1.6" stroke-linecap="round">
+          <path d="M42 20 q2 2 4 0"/><path d="M50 20 q2 2 4 0"/>
+        </g>
+        <g class="eye-open" fill="#4D3B43">
+          <circle cx="44" cy="20" r="1.7"/><circle cx="52" cy="20" r="1.7"/>
+        </g>
+      </svg>
+    </div>
+    <span>回線チェック v1.0</span>
+  </footer>
+</main>
+
+<script>
+(() => {
+  "use strict";
+  const MB = 1e6;                  // 表記どおりの10進メガバイト
+  const MAX_MB = 2000;             // 1回の上限(2GB)
+  const CHUNK = 50 * MB;           // 1リクエストあたりの取得量
+  const ENDPOINT = "https://speed.cloudflare.com/__down?bytes=";
+
+  const $ = (id) => document.getElementById(id);
+  const amountEl = $("amount"), hintEl = $("hint"), startEl = $("start"),
+        stopEl = $("stop"), fillEl = $("fill"), pctEl = $("pct"),
+        statusEl = $("status"), bytesEl = $("bytes"), mbEl = $("mb"),
+        mbpsEl = $("mbps");
+  const gaugeCard = document.querySelector(".gauge-wrap");
+  const chipEls = [...document.querySelectorAll(".chips button")];
+
+  let running = false;
+  let received = 0;
+  let targetBytes = 0;
+  let aborter = null;
+  let wakeLock = null;
+  let samples = [];        // [time(ms), 累計バイト] 直近3秒ぶん
+  let uiQueued = false;
+
+  const getAmount = () => {
+    const n = parseInt(amountEl.value.replace(/[^0-9]/g, ""), 10);
+    return Number.isFinite(n) ? Math.min(n, MAX_MB) : 0;
+  };
+  const setAmount = (mb) => { amountEl.value = String(mb); };
+
+  const showHint = (msg) => { hintEl.textContent = msg; };
+
+  const refreshChips = () => {
+    const cur = getAmount();
+    chipEls.forEach((b) => {
+      b.disabled = running || cur + Number(b.dataset.add) > MAX_MB;
+    });
+  };
+
+  chipEls.forEach((b) => b.addEventListener("click", () => {
+    const next = getAmount() + Number(b.dataset.add);
+    if (next > MAX_MB) return;
+    setAmount(next);
+    showHint(next === MAX_MB ? "いちどにチェックできるのは 2GB までです" : "");
+    amountEl.classList.remove("pop");
+    void amountEl.offsetWidth;      // アニメーション再始動
+    amountEl.classList.add("pop");
+    refreshChips();
+  }));
+
+  amountEl.addEventListener("input", () => {
+    const digits = amountEl.value.replace(/[^0-9]/g, "");
+    const n = parseInt(digits, 10);
+    if (Number.isFinite(n) && n > MAX_MB) {
+      setAmount(MAX_MB);
+      showHint("いちどにチェックできるのは 2GB までです");
+    } else {
+      amountEl.value = digits;
+      showHint("");
+    }
+    refreshChips();
+  });
+  amountEl.addEventListener("blur", () => setAmount(getAmount()));
+
+  $("clear").addEventListener("click", () => {
+    if (running) return;
+    setAmount(0);
+    showHint("");
+    refreshChips();
+  });
+
+  const fmt = (n) => n.toLocaleString("ja-JP");
+
+  const paint = () => {
+    uiQueued = false;
+    const pct = targetBytes > 0 ? Math.min(received / targetBytes * 100, 100) : 0;
+    fillEl.style.width = pct + "%";
+    pctEl.textContent = (Math.floor(pct * 10) / 10).toFixed(1) + "%";
+    bytesEl.textContent = fmt(received);
+    mbEl.textContent = (received / MB).toFixed(6);
+    if (samples.length >= 2) {
+      const first = samples[0], last = samples[samples.length - 1];
+      const dt = (last[0] - first[0]) / 1000;
+      if (dt > 0.2) {
+        mbpsEl.textContent = ((last[1] - first[1]) * 8 / dt / 1e6).toFixed(2);
+      }
+    }
+  };
+  const queuePaint = () => {
+    if (!uiQueued) { uiQueued = true; requestAnimationFrame(paint); }
+  };
+
+  const setRunning = (on) => {
+    running = on;
+    document.body.classList.toggle("running", on);
+    gaugeCard.classList.toggle("running", on);
+    startEl.hidden = on;
+    stopEl.hidden = !on;
+    amountEl.disabled = on;
+    $("clear").disabled = on;
+    refreshChips();
+  };
+
+  const acquireWakeLock = async () => {
+    try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
+  };
+  document.addEventListener("visibilitychange", () => {
+    if (running && document.visibilityState === "visible") acquireWakeLock();
+  });
+
+  startEl.addEventListener("click", async () => {
+    const mb = getAmount();
+    if (mb < 1) { showHint("チェックする量をえらんでください"); return; }
+    showHint("");
+    targetBytes = mb * MB;
+    received = 0;
+    samples = [];
+    gaugeCard.classList.remove("done");
+    statusEl.className = "status";
+    statusEl.textContent = "チェック中…";
+    mbpsEl.textContent = "-";
+    setRunning(true);
+    acquireWakeLock();
+    aborter = new AbortController();
+
+    try {
+      while (running && received < targetBytes) {
+        const want = Math.min(targetBytes - received, CHUNK);
+        const res = await fetch(ENDPOINT + want, {
+          cache: "no-store",
+          signal: aborter.signal,
+        });
+        if (!res.ok || !res.body) throw new Error("http " + res.status);
+        const reader = res.body.getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          received += value.byteLength;
+          const now = performance.now();
+          samples.push([now, received]);
+          while (samples.length > 2 && now - samples[0][0] > 3000) samples.shift();
+          queuePaint();
+          if (received >= targetBytes) { aborter.abort(); break; }
+        }
+      }
+      if (received >= targetBytes) {
+        statusEl.className = "status ok";
+        statusEl.textContent = "チェック完了!回線は元気に動いています";
+        gaugeCard.classList.add("done");
+      }
+    } catch (err) {
+      if (err && err.name === "AbortError" && received >= targetBytes) {
+        statusEl.className = "status ok";
+        statusEl.textContent = "チェック完了!回線は元気に動いています";
+        gaugeCard.classList.add("done");
+      } else if (err && err.name === "AbortError") {
+        statusEl.textContent = "とちゅうでやめました";
+      } else {
+        statusEl.textContent = "うまく通信できませんでした。電波のよいところで、もういちど試してみてください。";
+      }
+    } finally {
+      setRunning(false);
+      paint();
+      try { wakeLock?.release(); } catch {}
+      wakeLock = null;
+    }
+  });
+
+  stopEl.addEventListener("click", () => {
+    running = false;
+    aborter?.abort();
+  });
+
+  refreshChips();
+})();
+</script>
+</body>
+</html>
