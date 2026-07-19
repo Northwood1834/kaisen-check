@@ -479,7 +479,7 @@
     </div>
     <div class="status" id="status" aria-live="polite"></div>
     <div class="stats" aria-live="off">
-      受信 <b id="bytes">0</b> バイト(<b id="mb">0</b> MB)<br>
+      受信 <b id="bytes">0</b> バイト(約 <b id="mb">0</b> MB)<br>
       いまの速さ <b id="mbps">-</b> Mbps
     </div>
     <div class="last-check" id="last-check" hidden></div>
@@ -519,7 +519,7 @@
       </svg>
     </div>
     <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: <a href="https://instagram.com/mumupoikatsu" target="_blank" rel="noopener noreferrer">mumupoikatsu</a></span>
-    <span>© mumupoikatsu · 回線チェック v2.2</span>
+    <span>© mumupoikatsu · 回線チェック v2.3</span>
   </footer>
 </main>
 <div class="parade" id="parade" aria-hidden="true"></div>
@@ -614,8 +614,8 @@
     fillEl.style.width = pct + "%";
     pctEl.textContent = (Math.floor(pct * 10) / 10).toFixed(1) + "%";
     bytesEl.textContent = fmt(received);
-    // 整数バイト由来の正確な値。意味のない末尾ゼロは出さない(50.000000 → 50)
-    mbEl.textContent = String(parseFloat((received / MB).toFixed(6)));
+    // バイト値が正確な一次データ。MBはわかりやすさ重視の要約(小数1桁に丸め)
+    mbEl.textContent = String(parseFloat((received / MB).toFixed(1)));
     if (samples.length >= 2) {
       const first = samples[0], last = samples[samples.length - 1];
       const dt = (last[0] - first[0]) / 1000;
