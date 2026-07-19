@@ -549,7 +549,7 @@
       </svg>
     </div>
     <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: <a href="https://instagram.com/mumupoikatsu" target="_blank" rel="noopener noreferrer">mumupoikatsu</a></span>
-    <span>© mumupoikatsu · 回線チェック v2.10</span>
+    <span>© mumupoikatsu · 回線チェック v2.11</span>
   </footer>
 </main>
 <div class="parade" id="parade" aria-hidden="true"></div>
@@ -830,11 +830,18 @@
       return old && old.t ? [old] : [];
     } catch { return []; }
   };
+  const monthKey = (t) => {
+    const d = new Date(t);
+    return d.getFullYear() * 12 + d.getMonth();
+  };
+  // 保存は「直近3件+当月の全記録」。それ以外の古い記録は落とす
+  const pruneHistory = (h) =>
+    h.filter((rec, i) => i < 3 || monthKey(rec.t) === monthKey(Date.now()));
   const showLastCheck = () => {
     const h = loadHistory();
     if (h.length === 0) return;
     const labels = ["前回のチェック", "前々回", "その前"];
-    lastCheckEl.textContent = h.slice(0, 3).map((rec, i) => {
+    const lines = h.slice(0, 3).map((rec, i) => {
       const dt = new Date(rec.t);
       // 話しことば寄りの表記。年は今年以外のときだけ添える
       const y = dt.getFullYear() === new Date().getFullYear()
@@ -842,12 +849,18 @@
       const d = `${y}${dt.getMonth() + 1}月${dt.getDate()}日` +
         `${dt.getHours()}時${dt.getMinutes()}分`;
       return `${labels[i]}: ${d}(${rec.mb}MB)`;
-    }).join("\n");
+    });
+    const thisMonth = h.filter((rec) => monthKey(rec.t) === monthKey(Date.now()));
+    if (thisMonth.length > 0) {
+      const total = thisMonth.reduce((sum, rec) => sum + rec.mb, 0);
+      lines.push(`今月の合計: ${total.toLocaleString("ja-JP")}MB(${thisMonth.length}回)`);
+    }
+    lastCheckEl.textContent = lines.join("\n");
     lastCheckEl.hidden = false;
   };
   const saveLastCheck = (mb) => {
     try {
-      const h = [{ t: Date.now(), mb }, ...loadHistory()].slice(0, 3);
+      const h = pruneHistory([{ t: Date.now(), mb }, ...loadHistory()]);
       localStorage.setItem("checkHistory", JSON.stringify(h));
       localStorage.removeItem("lastCheck");
     } catch {}
