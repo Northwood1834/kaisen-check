@@ -49,6 +49,27 @@
   }
 
   /* ---- header ---- */
+  header { position: relative; }
+  .net-badge {
+    position: absolute;
+    top: .2rem;
+    right: 0;
+    font-size: .68rem;
+    font-weight: 700;
+    padding: .25rem .6rem;
+    border-radius: 999px;
+    border: 1.5px solid;
+  }
+  .net-badge.cellular {
+    color: #5E8F84;
+    background: #F0F7F4;
+    border-color: #D3E6DF;
+  }
+  .net-badge.wifi {
+    color: #B08968;
+    background: #FFF8EE;
+    border-color: #F5E3CC;
+  }
   header h1 {
     font-size: 1.55rem;
     font-weight: 800;
@@ -437,6 +458,7 @@
 <body>
 <main>
   <header>
+    <span class="net-badge" id="net-badge" hidden></span>
     <h1>回線チェック<span class="dot">。</span></h1>
     <p>データを少しだけ流して、回線がきちんと動いているかたしかめるツールです。</p>
   </header>
@@ -519,7 +541,7 @@
       </svg>
     </div>
     <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: <a href="https://instagram.com/mumupoikatsu" target="_blank" rel="noopener noreferrer">mumupoikatsu</a></span>
-    <span>© mumupoikatsu · 回線チェック v2.5</span>
+    <span>© mumupoikatsu · 回線チェック v2.6</span>
   </footer>
 </main>
 <div class="parade" id="parade" aria-hidden="true"></div>
@@ -771,8 +793,18 @@
   // ---- Wi-Fi接続の気づき(検出できる端末のみ / Android Chrome等) ----
   const conn = navigator.connection;
   const wifiNote = $("wifi-note");
+  const netBadge = $("net-badge");
   const refreshWifiNote = () => {
-    wifiNote.hidden = !(conn && conn.type === "wifi");
+    const type = conn ? conn.type : undefined;
+    wifiNote.hidden = type !== "wifi";
+    // 判定できる端末だけ、いまの接続を小さく表示(iOS Safariは非対応)
+    if (type === "wifi" || type === "cellular") {
+      netBadge.textContent = type === "wifi" ? "Wi-Fi 接続中" : "モバイル回線";
+      netBadge.className = "net-badge " + type;
+      netBadge.hidden = false;
+    } else {
+      netBadge.hidden = true;
+    }
   };
   if (conn) {
     refreshWifiNote();
