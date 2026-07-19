@@ -119,6 +119,7 @@
     transition: transform .1s, background .2s;
   }
   .chips button:active { transform: scale(.93); background: #FFE7EE; }
+  .chips button:last-child { grid-column: span 2; }
   .chips button:disabled { opacity: .4; cursor: default; transform: none; }
   .field-foot {
     display: flex;
@@ -320,6 +321,15 @@
     color: var(--muted);
     font-size: .68rem;
   }
+  .credit {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+  }
+  .credit img {
+    border-radius: 50%;
+    border: 1px solid var(--line);
+  }
   .cat { position: relative; width: 64px; height: 44px; }
   .cat svg { width: 100%; height: 100%; }
   .cat .eye-open { display: none; }
@@ -369,6 +379,9 @@
       <span class="unit">MB</span>
     </div>
     <div class="chips">
+      <button type="button" data-add="10">+10</button>
+      <button type="button" data-add="30">+30</button>
+      <button type="button" data-add="80">+80</button>
       <button type="button" data-add="100">+100</button>
       <button type="button" data-add="300">+300</button>
       <button type="button" data-add="500">+500</button>
@@ -432,7 +445,8 @@
         </g>
       </svg>
     </div>
-    <span>回線チェック v1.1</span>
+    <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: mumupoikatsu</span>
+    <span>© mumupoikatsu · 回線チェック v1.2</span>
   </footer>
 </main>
 
