@@ -549,7 +549,7 @@
       </svg>
     </div>
     <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: <a href="https://instagram.com/mumupoikatsu" target="_blank" rel="noopener noreferrer">mumupoikatsu</a></span>
-    <span>© mumupoikatsu · 回線チェック v2.9</span>
+    <span>© mumupoikatsu · 回線チェック v2.10</span>
   </footer>
 </main>
 <div class="parade" id="parade" aria-hidden="true"></div>
@@ -836,11 +836,12 @@
     const labels = ["前回のチェック", "前々回", "その前"];
     lastCheckEl.textContent = h.slice(0, 3).map((rec, i) => {
       const dt = new Date(rec.t);
-      const d = dt.toLocaleDateString("ja-JP",
-        { year: "numeric", month: "long", day: "numeric" });
-      const tm = dt.toLocaleTimeString("ja-JP",
-        { hour: "2-digit", minute: "2-digit" });
-      return `${labels[i]}: ${d} ${tm}(${rec.mb}MB)`;
+      // 話しことば寄りの表記。年は今年以外のときだけ添える
+      const y = dt.getFullYear() === new Date().getFullYear()
+        ? "" : `${dt.getFullYear()}年`;
+      const d = `${y}${dt.getMonth() + 1}月${dt.getDate()}日` +
+        `${dt.getHours()}時${dt.getMinutes()}分`;
+      return `${labels[i]}: ${d}(${rec.mb}MB)`;
     }).join("\n");
     lastCheckEl.hidden = false;
   };
