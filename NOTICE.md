@@ -19,3 +19,6 @@ Copyright © 2026 mumupoikatsu.
 
 Copies and forks may be modified under the applicable license, but these URLs
 identify the original project maintained by mumupoikatsu.
+
+The project's non-tracking origin marker and its limitations are documented in
+[`PROVENANCE.md`](PROVENANCE.md).
