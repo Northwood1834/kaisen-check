@@ -563,6 +563,17 @@
     color: var(--muted);
     text-underline-offset: 3px;
   }
+  .reload-link {
+    font-family: inherit;
+    font-size: .66rem;
+    color: var(--muted);
+    background: none;
+    border: none;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    padding: .15rem .3rem;
+  }
   .cat { position: relative; width: 64px; height: 44px; }
   .cat svg { width: 100%; height: 100%; }
   .cat .eye-open { display: none; }
@@ -735,7 +746,8 @@
       </svg>
     </div>
     <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: <a href="https://instagram.com/mumupoikatsu" target="_blank" rel="noopener noreferrer">mumupoikatsu</a></span>
-    <span>© mumupoikatsu · 回線チェック v2.14.1</span>
+    <span>© mumupoikatsu · 回線チェック v2.14.2</span>
+    <button type="button" class="reload-link" id="reload-latest">最新版を読み込む</button>
   </footer>
 </main>
 <div class="parade" id="parade" aria-hidden="true"></div>
@@ -748,6 +760,14 @@
     document.body.textContent =
       "このページは埋め込み表示では動きません。ブラウザで直接ひらいてください。";
     return;
+  }
+  // 手動更新用の一時パラメータは、読み込みが済んだらURLから取り除く
+  {
+    const u = new URL(location.href);
+    if (u.searchParams.has("_dw_refresh")) {
+      u.searchParams.delete("_dw_refresh");
+      history.replaceState(null, "", u.pathname + u.search + u.hash);
+    }
   }
   const MB = 1e6;                  // 表記どおりの10進メガバイト
   const MAX_MB = 2000;             // 1回の上限(2GB)
@@ -1391,6 +1411,16 @@
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  });
+
+  $("reload-latest").addEventListener("click", (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    button.textContent = "読み込み中…";
+    const u = new URL(location.href);
+    // URLを一度だけ変え、通常の再読み込みより確実にHTMLを取り直す
+    u.searchParams.set("_dw_refresh", Date.now());
+    location.replace(u.href);
   });
 
   refreshChips();
