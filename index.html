@@ -139,7 +139,7 @@
     width: 100%;
     margin-top: .7rem;
     font-family: inherit;
-    font-size: .9rem;
+    font-size: 1rem;
     font-weight: 700;
     color: var(--ink);
     background: #FFF9FA;
@@ -165,7 +165,8 @@
     min-width: 0;
     flex: 1;
     font-family: inherit;
-    font-size: .88rem;
+    /* iOS Safariの入力時自動ズーム(16px未満)による横ずれを防ぐ */
+    font-size: 1rem;
     color: var(--ink);
     background: #FFF9FA;
     border: 1.5px solid var(--line);
@@ -734,7 +735,7 @@
       </svg>
     </div>
     <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: <a href="https://instagram.com/mumupoikatsu" target="_blank" rel="noopener noreferrer">mumupoikatsu</a></span>
-    <span>© mumupoikatsu · 回線チェック v2.14</span>
+    <span>© mumupoikatsu · 回線チェック v2.14.1</span>
   </footer>
 </main>
 <div class="parade" id="parade" aria-hidden="true"></div>
@@ -1276,8 +1277,13 @@
       history.replaceState(null, "", runProfileId ? `#profile=${encodeURIComponent(runProfileId)}` : location.pathname + location.search);
       return;
     }
+    // 画面を差し替えてもスクロール位置と入力フォーカスは残るため、
+    // 新しい入口では先頭から見せ、モバイルのキーボードも閉じる
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     renderRoute();
     applyCatSize();
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => window.scrollTo(0, 0));
   });
   renderRoute();
 
