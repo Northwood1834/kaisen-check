@@ -770,6 +770,7 @@
   let lastMbps = 0;
   let activeProfileId = null;
   let runProfileId = null;
+  let managerReturnHash = "";
 
   const getAmount = () => {
     const n = parseInt(amountEl.value.replace(/[^0-9]/g, ""), 10);
@@ -1154,7 +1155,9 @@
       save.textContent = "保存";
       save.addEventListener("click", () => {
         const name = input.value.trim();
-        if (!name) return;
+        const duplicate = loadProfiles().some((p) => p.id !== profile.id && p.name === name);
+        input.setCustomValidity(duplicate ? "同じ名前のプロファイルがあります" : "");
+        if (!name || duplicate) { input.reportValidity(); return; }
         saveProfiles(loadProfiles().map((p) => p.id === profile.id ? { ...p, name } : p));
         renderRoute();
       });
@@ -1232,6 +1235,9 @@
     const name = input.value.trim();
     if (!name) return;
     const profiles = loadProfiles();
+    const duplicate = profiles.some((p) => p.name === name);
+    input.setCustomValidity(duplicate ? "同じ名前のプロファイルがあります" : "");
+    if (duplicate) { input.reportValidity(); return; }
     const profile = { id: newProfileId(), name, createdAt: Date.now() };
     saveProfiles([...profiles, profile]);
     if (profiles.length === 0 && $("profile-migrate").checked) {
@@ -1243,10 +1249,23 @@
   $("profile-select").addEventListener("change", (event) => {
     location.hash = `profile=${encodeURIComponent(event.target.value)}`;
   });
-  $("profile-entry").addEventListener("click", () => { location.hash = "profiles"; });
-  $("profile-manage").addEventListener("click", () => { location.hash = "profiles"; });
-  $("dashboard-manage").addEventListener("click", () => { location.hash = "profiles"; });
-  $("profile-panel-close").addEventListener("click", () => { location.hash = ""; });
+  const openProfileManager = () => {
+    managerReturnHash = activeProfileId
+      ? `profile=${encodeURIComponent(activeProfileId)}` : "";
+    location.hash = "profiles";
+  };
+  $("profile-entry").addEventListener("click", openProfileManager);
+  $("profile-manage").addEventListener("click", openProfileManager);
+  $("dashboard-manage").addEventListener("click", openProfileManager);
+  $("profile-panel-close").addEventListener("click", () => {
+    location.hash = managerReturnHash;
+    managerReturnHash = "";
+  });
+  window.addEventListener("storage", (event) => {
+    if (!running && (event.key === PROFILE_KEY || event.key === "checkHistory")) {
+      renderRoute();
+    }
+  });
   window.addEventListener("hashchange", () => {
     if (running) {
       history.replaceState(null, "", runProfileId ? `#profile=${encodeURIComponent(runProfileId)}` : location.pathname + location.search);
