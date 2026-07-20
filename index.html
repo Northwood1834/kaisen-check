@@ -89,6 +89,109 @@
     padding: 1.2rem 1.2rem 1.3rem;
     box-shadow: 0 4px 18px rgba(226, 118, 145, .07);
   }
+  .check-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+
+  /* ---- SIM profiles (advanced) ---- */
+  .profile-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .7rem;
+  }
+  .profile-heading strong { font-size: 1rem; }
+  .profile-heading button, .profile-open, .profile-action {
+    font-family: inherit;
+    font-size: .76rem;
+    font-weight: 700;
+    color: var(--accent-deep);
+    background: #FFF3F6;
+    border: 1.5px solid #FADCE4;
+    border-radius: 999px;
+    padding: .45rem .75rem;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .profile-current {
+    border-color: #F6D1DB;
+    background: #FFFAFB;
+  }
+  .profile-current-name {
+    margin-top: .35rem;
+    font-size: 1.15rem;
+    font-weight: 800;
+  }
+  .profile-note, .profile-empty {
+    margin-top: .35rem;
+    font-size: .74rem;
+    color: var(--muted);
+  }
+  .profile-select {
+    width: 100%;
+    margin-top: .7rem;
+    font-family: inherit;
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--ink);
+    background: #FFF9FA;
+    border: 1.5px solid var(--line);
+    border-radius: .8rem;
+    padding: .55rem .7rem;
+  }
+  .profile-list { margin-top: .75rem; display: grid; gap: .55rem; }
+  .profile-row {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .65rem 0;
+    border-top: 1px dashed var(--line);
+  }
+  .profile-row:first-child { border-top: 0; }
+  .profile-row-main { flex: 1; min-width: 0; }
+  .profile-row-name { font-size: .9rem; font-weight: 800; }
+  .profile-row-status { font-size: .7rem; color: var(--muted); }
+  .profile-row-status.pending { color: var(--accent-deep); font-weight: 700; }
+  .profile-form { display: flex; gap: .55rem; margin-top: .8rem; }
+  .profile-form input, .profile-edit-name {
+    min-width: 0;
+    flex: 1;
+    font-family: inherit;
+    font-size: .88rem;
+    color: var(--ink);
+    background: #FFF9FA;
+    border: 1.5px solid var(--line);
+    border-radius: .8rem;
+    padding: .55rem .7rem;
+  }
+  .profile-form input:focus, .profile-edit-name:focus, .profile-select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .profile-migrate { margin-top: .7rem; font-size: .74rem; color: var(--muted); }
+  .profile-migrate input { margin-right: .35rem; accent-color: var(--accent); }
+  .profile-help {
+    margin-top: .8rem;
+    padding-top: .7rem;
+    border-top: 1px dashed var(--line);
+    font-size: .72rem;
+    color: var(--muted);
+  }
+  .profile-danger { color: #A96C7B; background: none; border-color: var(--line); }
+  .advanced-link {
+    align-self: center;
+    font-family: inherit;
+    font-size: .7rem;
+    color: var(--muted);
+    background: none;
+    border: none;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
 
   /* ---- amount block ---- */
   .field-label {
@@ -512,6 +615,38 @@
     <p>データを少しだけ流して、回線がきちんと動いているかたしかめるツールです。</p>
   </header>
 
+  <section class="card" id="profile-dashboard" hidden aria-label="SIMごとの今月のチェック状況">
+    <div class="profile-heading">
+      <strong>今月のSIMチェック</strong>
+      <button type="button" id="dashboard-manage">プロファイル設定</button>
+    </div>
+    <div class="profile-list" id="dashboard-list"></div>
+  </section>
+
+  <section class="card" id="profile-panel" hidden aria-label="SIM別プロファイルの設定">
+    <div class="profile-heading">
+      <strong>プロファイルデザイナー</strong>
+      <button type="button" id="profile-panel-close">もどる</button>
+    </div>
+    <p class="profile-note">SIMを自動で見分ける機能ではありません。チェックの記録先につける名前を作ります。</p>
+    <div class="profile-list" id="profile-list"></div>
+    <form class="profile-form" id="profile-form">
+      <input id="profile-name" type="text" maxlength="30" autocomplete="off" placeholder="例: サブSIM" aria-label="新しいプロファイル名">
+      <button class="profile-action" type="submit">追加</button>
+    </form>
+    <label class="profile-migrate" id="profile-migrate-wrap" hidden><input id="profile-migrate" type="checkbox" checked>これまでの記録を最初のプロファイルへ引き継ぐ</label>
+    <p class="profile-help">専用画面を開いてから、ブックマーク・タブ固定・ホーム画面への追加を行えます。追加時に名前を変更できる場合は、SIMがわかる名前にしてください。端末によっては複数追加できません。</p>
+  </section>
+
+  <div id="check-content" class="check-content">
+  <section class="card profile-current" id="profile-current" hidden aria-label="選択中のプロファイル">
+    <div class="profile-heading"><span class="field-label">記録先</span><button type="button" id="profile-manage">プロファイル設定</button></div>
+    <div class="profile-current-name" id="profile-current-name"></div>
+    <p class="profile-note">このSIMとして記録します。現在使用中のSIMを確認してください。</p>
+    <select class="profile-select" id="profile-select" aria-label="記録先のプロファイル"></select>
+    <p class="profile-help"><a class="profile-open" id="profile-new-tab" href="#" target="_blank" rel="noopener">このSIM用の画面を別タブで開く</a></p>
+  </section>
+
   <section class="card" aria-label="チェックする量">
     <div class="field-label">チェックする量</div>
     <div class="amount">
@@ -570,8 +705,10 @@
   <ul class="notes">
     <li>※ えらんだ量のぶんだけ、実際にデータ通信を行います。いちどにチェックできるのは 2GB までです。</li>
     <li>※ 通信のしくみ上、えらんだ量より少しだけ多くデータを使うことがあります。</li>
-    <li>※ チェックはこの画面の中だけで行われ、前回の記録もこの端末の中にだけ残ります。どこかへ送られることはありません。</li>
+    <li>※ 記録は当月分と、それ以前の最近3件だけ、この端末の中に残ります。SIM別利用時はプロファイルごとに整理され、どこかへ送られることはありません。</li>
   </ul>
+  <button type="button" class="advanced-link" id="profile-entry">SIM別に管理する(上級者向け)</button>
+  </div>
 
   <footer>
     <div class="cat" aria-hidden="true">
@@ -592,7 +729,7 @@
       </svg>
     </div>
     <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: <a href="https://instagram.com/mumupoikatsu" target="_blank" rel="noopener noreferrer">mumupoikatsu</a></span>
-    <span>© mumupoikatsu · 回線チェック v2.13</span>
+    <span>© mumupoikatsu · 回線チェック v2.14</span>
   </footer>
 </main>
 <div class="parade" id="parade" aria-hidden="true"></div>
@@ -631,6 +768,8 @@
   let samples = [];        // [time(ms), 累計バイト] 直近3秒ぶん
   let uiQueued = false;
   let lastMbps = 0;
+  let activeProfileId = null;
+  let runProfileId = null;
 
   const getAmount = () => {
     const n = parseInt(amountEl.value.replace(/[^0-9]/g, ""), 10);
@@ -754,6 +893,8 @@
     stopEl.hidden = !on;
     amountEl.disabled = on;
     $("clear").disabled = on;
+    $("profile-select").disabled = on;
+    $("profile-manage").disabled = on;
     refreshChips();
     if (on) paradeStart(); else paradeStop();
   };
@@ -768,6 +909,7 @@
   startEl.addEventListener("click", async () => {
     const mb = getAmount();
     if (mb < 1) { showHint("チェックする量をえらんでください"); return; }
+    runProfileId = activeProfileId;
     showHint("");
     targetBytes = mb * MB;
     received = 0;
@@ -819,8 +961,8 @@
         statusEl.className = "status ok";
         statusEl.textContent = "チェック完了!回線は元気に動いています";
         gaugeCard.classList.add("done");
-        saveLastCheck(mb);
-        const c = monthCount();
+        saveLastCheck(mb, runProfileId);
+        const c = monthCount(runProfileId);
         if (c >= 10 && c % 10 === 0) celebrate(c);
       }
     } catch (err) {
@@ -835,6 +977,7 @@
       paint();
       try { wakeLock?.release(); } catch {}
       wakeLock = null;
+      runProfileId = null;
     }
   });
 
@@ -864,12 +1007,22 @@
     conn.addEventListener?.("change", refreshWifiNote);
   }
 
-  // ---- チェックの記録・直近3件(この端末のlocalStorageのみ、外部送信なし) ----
+  // ---- SIM別プロファイルとチェック記録(端末内のみ) ----
+  const PROFILE_KEY = "simProfiles";
   const lastCheckEl = $("last-check");
+  const loadProfiles = () => {
+    try {
+      const p = JSON.parse(localStorage.getItem(PROFILE_KEY));
+      return Array.isArray(p) ? p.filter((x) => x && x.id && x.name) : [];
+    } catch { return []; }
+  };
+  const saveProfiles = (profiles) => {
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profiles)); } catch {}
+  };
   const loadHistory = () => {
     try {
       const h = JSON.parse(localStorage.getItem("checkHistory"));
-      if (Array.isArray(h)) return h;
+      if (Array.isArray(h)) return h.filter((r) => r && r.t && Number.isFinite(r.mb));
       // 旧形式(1件のみ)からの引き継ぎ
       const old = JSON.parse(localStorage.getItem("lastCheck"));
       return old && old.t ? [old] : [];
@@ -879,16 +1032,41 @@
     const d = new Date(t);
     return d.getFullYear() * 12 + d.getMonth();
   };
-  // 保存は「直近3件+当月の全記録」。それ以外の古い記録は落とす
-  const pruneHistory = (h) =>
-    h.filter((rec, i) => i < 3 || monthKey(rec.t) === monthKey(Date.now()));
+  const profileKey = (rec) => rec.profileId || "__vanilla__";
+  // 当月分は全件、過去分はプロファイルごとに直近3件だけ残す
+  const pruneHistory = (history) => {
+    const nowMonth = monthKey(Date.now());
+    const oldCounts = new Map();
+    return [...history].sort((a, b) => b.t - a.t).filter((rec) => {
+      if (monthKey(rec.t) === nowMonth) return true;
+      const key = profileKey(rec);
+      const count = oldCounts.get(key) || 0;
+      oldCounts.set(key, count + 1);
+      return count < 3;
+    });
+  };
+  const storeHistory = (history) => {
+    try {
+      localStorage.setItem("checkHistory", JSON.stringify(pruneHistory(history)));
+      localStorage.removeItem("lastCheck");
+    } catch {}
+  };
+  // 月が変わっただけでも保存期限を反映する
+  storeHistory(loadHistory());
+
+  const historyFor = (profileId) => loadHistory()
+    .filter((rec) => profileId ? rec.profileId === profileId : !rec.profileId)
+    .sort((a, b) => b.t - a.t);
   const showLastCheck = () => {
-    const h = loadHistory();
-    if (h.length === 0) return;
+    const h = historyFor(activeProfileId);
+    if (h.length === 0) {
+      lastCheckEl.hidden = true;
+      lastCheckEl.textContent = "";
+      return;
+    }
     const labels = ["前回のチェック", "前々回", "その前"];
     const lines = h.slice(0, 3).map((rec, i) => {
       const dt = new Date(rec.t);
-      // 話しことば寄りの表記。年は今年以外のときだけ添える
       const y = dt.getFullYear() === new Date().getFullYear()
         ? "" : `${dt.getFullYear()}年`;
       const d = `${y}${dt.getMonth() + 1}月${dt.getDate()}日` +
@@ -898,27 +1076,193 @@
     const thisMonth = h.filter((rec) => monthKey(rec.t) === monthKey(Date.now()));
     if (thisMonth.length > 0) {
       const total = thisMonth.reduce((sum, rec) => sum + rec.mb, 0);
-      lines.push(`今月の合計: ${total.toLocaleString("ja-JP")}MB(${thisMonth.length}回)`);
+      lines.push(`今月チェックに設定した量: ${total.toLocaleString("ja-JP")}MB(${thisMonth.length}回)`);
     }
     lastCheckEl.textContent = lines.join("\n");
     lastCheckEl.hidden = false;
   };
-  const saveLastCheck = (mb) => {
-    try {
-      const h = pruneHistory([{ t: Date.now(), mb }, ...loadHistory()]);
-      localStorage.setItem("checkHistory", JSON.stringify(h));
-      localStorage.removeItem("lastCheck");
-    } catch {}
+  const saveLastCheck = (mb, profileId) => {
+    storeHistory([{ t: Date.now(), mb, ...(profileId ? { profileId } : {}) }, ...loadHistory()]);
     showLastCheck();
+    renderDashboard();
   };
-  showLastCheck();
+
+  const newProfileId = () => crypto.randomUUID?.() ||
+    `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  const profileUrl = (id) => {
+    const u = new URL(location.href);
+    u.hash = `profile=${encodeURIComponent(id)}`;
+    return u.href;
+  };
+  const hashProfileId = () => {
+    if (!location.hash.startsWith("#profile=")) return null;
+    try { return decodeURIComponent(location.hash.slice(9)); }
+    catch { return "__invalid__"; }
+  };
+
+  const renderDashboard = () => {
+    const list = $("dashboard-list");
+    list.textContent = "";
+    const nowMonth = monthKey(Date.now());
+    const rows = loadProfiles().map((profile) => {
+      const latest = historyFor(profile.id).find((r) => monthKey(r.t) === nowMonth);
+      return { profile, latest };
+    }).sort((a, b) => Number(Boolean(a.latest)) - Number(Boolean(b.latest)));
+    rows.forEach(({ profile, latest }) => {
+      const row = document.createElement("div");
+      row.className = "profile-row";
+      const main = document.createElement("div");
+      main.className = "profile-row-main";
+      const name = document.createElement("div");
+      name.className = "profile-row-name";
+      name.textContent = profile.name;
+      const status = document.createElement("div");
+      status.className = "profile-row-status" + (latest ? "" : " pending");
+      if (latest) {
+        const d = new Date(latest.t);
+        status.textContent = `${d.getMonth() + 1}月${d.getDate()}日にチェック済み`;
+      } else {
+        status.textContent = "今月はまだチェックしていません";
+      }
+      main.append(name, status);
+      const open = document.createElement("a");
+      open.className = "profile-open";
+      open.href = `#profile=${encodeURIComponent(profile.id)}`;
+      open.textContent = latest ? "確認する" : "チェックする";
+      row.append(main, open);
+      list.appendChild(row);
+    });
+  };
+
+  const renderProfilePanel = () => {
+    const profiles = loadProfiles();
+    $("profile-panel").querySelector(".profile-note").textContent =
+      "SIMを自動で見分ける機能ではありません。チェックの記録先につける名前を作ります。";
+    const list = $("profile-list");
+    list.textContent = "";
+    profiles.forEach((profile) => {
+      const row = document.createElement("div");
+      row.className = "profile-row";
+      const input = document.createElement("input");
+      input.className = "profile-edit-name";
+      input.maxLength = 30;
+      input.value = profile.name;
+      input.setAttribute("aria-label", `${profile.name}の名前`);
+      const save = document.createElement("button");
+      save.className = "profile-action";
+      save.type = "button";
+      save.textContent = "保存";
+      save.addEventListener("click", () => {
+        const name = input.value.trim();
+        if (!name) return;
+        saveProfiles(loadProfiles().map((p) => p.id === profile.id ? { ...p, name } : p));
+        renderRoute();
+      });
+      const del = document.createElement("button");
+      del.className = "profile-action profile-danger";
+      del.type = "button";
+      del.textContent = "削除";
+      del.addEventListener("click", () => {
+        if (!confirm(`「${profile.name}」と、残っている記録を削除しますか?`)) return;
+        saveProfiles(loadProfiles().filter((p) => p.id !== profile.id));
+        storeHistory(loadHistory().filter((r) => r.profileId !== profile.id));
+        renderRoute();
+      });
+      row.append(input, save, del);
+      list.appendChild(row);
+    });
+    $("profile-migrate-wrap").hidden = profiles.length > 0 ||
+      !loadHistory().some((r) => !r.profileId);
+  };
+
+  const renderRoute = () => {
+    const profiles = loadProfiles();
+    const requestedId = hashProfileId();
+    const requested = profiles.find((p) => p.id === requestedId);
+    const managing = location.hash === "#profiles";
+    $("profile-dashboard").hidden = true;
+    $("profile-panel").hidden = !managing;
+    $("check-content").hidden = true;
+
+    if (managing) {
+      activeProfileId = null;
+      renderProfilePanel();
+      return;
+    }
+    if (requestedId && !requested) {
+      activeProfileId = null;
+      $("profile-panel").hidden = false;
+      renderProfilePanel();
+      const note = $("profile-panel").querySelector(".profile-note");
+      note.textContent = "この端末には指定されたプロファイルがありません。新しく作るか、一覧から開いてください。";
+      return;
+    }
+    if (requested) {
+      activeProfileId = requested.id;
+      $("check-content").hidden = false;
+      $("profile-current").hidden = false;
+      $("profile-current-name").textContent = requested.name;
+      const select = $("profile-select");
+      select.textContent = "";
+      profiles.forEach((p) => {
+        const option = document.createElement("option");
+        option.value = p.id;
+        option.textContent = p.name;
+        option.selected = p.id === requested.id;
+        select.appendChild(option);
+      });
+      $("profile-new-tab").href = profileUrl(requested.id);
+      showLastCheck();
+      return;
+    }
+    activeProfileId = null;
+    if (profiles.length > 0) {
+      $("profile-dashboard").hidden = false;
+      renderDashboard();
+    } else {
+      $("check-content").hidden = false;
+      $("profile-current").hidden = true;
+      showLastCheck();
+    }
+  };
+
+  $("profile-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const input = $("profile-name");
+    const name = input.value.trim();
+    if (!name) return;
+    const profiles = loadProfiles();
+    const profile = { id: newProfileId(), name, createdAt: Date.now() };
+    saveProfiles([...profiles, profile]);
+    if (profiles.length === 0 && $("profile-migrate").checked) {
+      storeHistory(loadHistory().map((r) => r.profileId ? r : { ...r, profileId: profile.id }));
+    }
+    input.value = "";
+    location.hash = `profile=${encodeURIComponent(profile.id)}`;
+  });
+  $("profile-select").addEventListener("change", (event) => {
+    location.hash = `profile=${encodeURIComponent(event.target.value)}`;
+  });
+  $("profile-entry").addEventListener("click", () => { location.hash = "profiles"; });
+  $("profile-manage").addEventListener("click", () => { location.hash = "profiles"; });
+  $("dashboard-manage").addEventListener("click", () => { location.hash = "profiles"; });
+  $("profile-panel-close").addEventListener("click", () => { location.hash = ""; });
+  window.addEventListener("hashchange", () => {
+    if (running) {
+      history.replaceState(null, "", runProfileId ? `#profile=${encodeURIComponent(runProfileId)}` : location.pathname + location.search);
+      return;
+    }
+    renderRoute();
+    applyCatSize();
+  });
+  renderRoute();
 
   // ---- 当月マイルストーンのお祝い(10回ごと。説明は出さない) ----
   const goldEl = $("gold");
   const sparklesEl = document.querySelector(".sparkles");
   const catEl = document.querySelector(".cat");
-  const monthCount = () =>
-    loadHistory().filter((r) => monthKey(r.t) === monthKey(Date.now())).length;
+  const monthCount = (profileId = activeProfileId) =>
+    historyFor(profileId).filter((r) => monthKey(r.t) === monthKey(Date.now())).length;
   // 110回以降: 猫が10回ごとに15%ずつ複利で育つ(上限なし)
   const applyCatSize = () => {
     const c = monthCount();
@@ -985,6 +1329,11 @@
   $("plan-add").addEventListener("click", () => {
     if (!planDate.value) return;
     const ymd = planDate.value.replace(/-/g, "");
+    const selectedProfile = loadProfiles().find((p) => p.id === activeProfileId);
+    const profileLabel = selectedProfile ? `(${selectedProfile.name})` : "";
+    const openUrl = selectedProfile ? profileUrl(selectedProfile.id) :
+      location.origin + location.pathname;
+    const icsEscape = (s) => s.replace(/([\\;,])/g, "\\$1");
     const ics = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
@@ -994,8 +1343,8 @@
       "DTSTAMP:" + new Date().toISOString().replace(/[-:]|\.\d{3}/g, ""),
       "DTSTART:" + ymd + "T090000",
       "DTEND:" + ymd + "T091500",
-      "SUMMARY:回線チェックの日",
-      "DESCRIPTION:回線チェックをひらく → https://northwood1834.github.io/kaisen-check/",
+      "SUMMARY:" + icsEscape("回線チェックの日" + profileLabel),
+      "DESCRIPTION:" + icsEscape("回線チェックをひらく → " + openUrl),
       "BEGIN:VALARM",
       "ACTION:DISPLAY",
       "DESCRIPTION:回線チェックの日",
