@@ -559,9 +559,14 @@
     border-radius: 50%;
     border: 1px solid var(--line);
   }
-  .credit a {
+  .credit a,
+  .companion-link {
     color: var(--muted);
     text-underline-offset: 3px;
+  }
+  .companion-link {
+    margin: .15rem 0;
+    font-weight: 700;
   }
   .reload-link {
     font-family: inherit;
@@ -745,6 +750,7 @@
         </g>
       </svg>
     </div>
+    <a class="companion-link" href="https://northwood1834.github.io/kanri-book/" target="_blank" rel="noopener noreferrer">管理ブックを開く ↗</a>
     <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: <a href="https://instagram.com/mumupoikatsu" target="_blank" rel="noopener noreferrer">mumupoikatsu</a></span>
     <span>© mumupoikatsu · 回線チェック v2.14.2</span>
     <button type="button" class="reload-link" id="reload-latest">最新版を読み込む</button>
