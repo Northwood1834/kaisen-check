@@ -782,6 +782,7 @@
   const unitFor = (total) =>
     Math.max(2 * MB, Math.min(25 * MB, Math.ceil(total / (WORKERS * 2))));
   const MAX_PASSES = 3;            // 取りこぼし再取得の上限(無限リトライ防止)
+  const REQUEST_RETRIES = 4;       // 一時的な切断・途中終了への再試行回数
   const ENDPOINT = "https://speed.cloudflare.com/__down?bytes=";
 
   const $ = (id) => document.getElementById(id);
@@ -969,20 +970,47 @@
           for (;;) {
             const want = units.shift();
             if (want === undefined || !running) return;
-            const res = await fetch(ENDPOINT + want, {
-              cache: "no-store",
-              signal: aborter.signal,
-            });
-            if (!res.ok || !res.body) throw new Error("http " + res.status);
-            const reader = res.body.getReader();
-            for (;;) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              received += value.byteLength;
-              const now = performance.now();
-              samples.push([now, received]);
-              while (samples.length > 2 && now - samples[0][0] > 3000) samples.shift();
-              queuePaint();
+
+            // 大きな計測では、プロキシやモバイル回線がレスポンスを途中で
+            // 閉じることがある。受信済み分を失敗扱いにせず、残りだけ再取得する。
+            let remaining = want;
+            let attempts = 0;
+            while (remaining > 0 && running) {
+              let delivered = 0;
+              try {
+                const res = await fetch(ENDPOINT + remaining, {
+                  cache: "no-store",
+                  signal: aborter.signal,
+                });
+                if (!res.ok || !res.body) throw new Error("http " + res.status);
+                const reader = res.body.getReader();
+                for (;;) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+                  const size = value.byteLength;
+                  delivered += size;
+                  received += size;
+                  const now = performance.now();
+                  samples.push([now, received]);
+                  while (samples.length > 2 && now - samples[0][0] > 3000) samples.shift();
+                  queuePaint();
+                }
+                remaining -= delivered;
+                if (delivered === 0) throw new Error("empty response");
+                attempts = 0; // 一部受信できたら、残りの再試行回数をリセット
+              } catch (err) {
+                remaining -= delivered;
+                if (err && err.name === "AbortError") throw err;
+                if (remaining <= 0) break;
+                if (++attempts >= REQUEST_RETRIES) throw err;
+                await new Promise((resolve, reject) => {
+                  const timer = setTimeout(resolve, Math.min(2000, 250 * attempts));
+                  aborter.signal.addEventListener("abort", () => {
+                    clearTimeout(timer);
+                    reject(aborter.signal.reason || new DOMException("Aborted", "AbortError"));
+                  }, { once: true });
+                });
+              }
             }
           }
         };
@@ -997,13 +1025,15 @@
         saveLastCheck(mb, runProfileId);
         const c = monthCount(runProfileId);
         if (c >= 10 && c % 10 === 0) celebrate(c);
+      } else if (running) {
+        throw new Error("incomplete response");
       }
     } catch (err) {
       aborter.abort();   // 1本の失敗で残りのストリームも止め、余計な通信を防ぐ
       if (err && err.name === "AbortError") {
         statusEl.textContent = "とちゅうでやめました";
       } else {
-        statusEl.textContent = "うまく通信できませんでした。電波のよいところで、もういちど試してみてください。";
+        statusEl.textContent = "通信が途中で止まりました。少し待ってから、もう一度お試しください。";
       }
     } finally {
       setRunning(false);
