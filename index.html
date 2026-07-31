@@ -752,7 +752,7 @@
     </div>
     <a class="companion-link" href="https://northwood1834.github.io/kanri-book/" target="_blank" rel="noopener noreferrer">管理ブックを開く ↗</a>
     <span class="credit"><img src="author.png" alt="" width="20" height="20">作者: <a href="https://instagram.com/mumupoikatsu" target="_blank" rel="noopener noreferrer">mumupoikatsu</a></span>
-    <span>© mumupoikatsu · 回線チェック v2.14.2</span>
+    <span>© mumupoikatsu · 回線チェック v2.14.3</span>
     <button type="button" class="reload-link" id="reload-latest">最新版を読み込む</button>
   </footer>
 </main>
@@ -782,7 +782,10 @@
   const unitFor = (total) =>
     Math.max(2 * MB, Math.min(25 * MB, Math.ceil(total / (WORKERS * 2))));
   const MAX_PASSES = 3;            // 取りこぼし再取得の上限(無限リトライ防止)
-  const REQUEST_RETRIES = 4;       // 一時的な切断・途中終了への再試行回数
+  const REQUEST_RETRIES = 8;       // モバイル回線の瞬断・切替を自動回復する再試行回数
+  const RETRY_BASE_MS = 500;
+  const RETRY_MAX_MS = 8000;
+  const REQUEST_IDLE_TIMEOUT_MS = 20000; // 応答が止まった接続を再試行へ回す
   const ENDPOINT = "https://speed.cloudflare.com/__down?bytes=";
 
   const $ = (id) => document.getElementById(id);
@@ -936,6 +939,27 @@
   const acquireWakeLock = async () => {
     try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {}
   };
+  const waitForRetry = (attempt, signal) => new Promise((resolve, reject) => {
+    // 短い固定間隔では回線切替中に再試行を使い切るため、最大8秒まで広げる。
+    const delay = Math.min(RETRY_MAX_MS, RETRY_BASE_MS * (2 ** (attempt - 1)));
+    let timer;
+    const cleanup = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", onAbort);
+      window.removeEventListener("online", onOnline);
+    };
+    const finish = () => { cleanup(); resolve(); };
+    const onAbort = () => {
+      cleanup();
+      reject(signal.reason || new DOMException("Aborted", "AbortError"));
+    };
+    // 明確にオフラインなら、復帰を検知した時点ですぐ再開する。
+    const onOnline = () => finish();
+    if (signal.aborted) { onAbort(); return; }
+    signal.addEventListener("abort", onAbort, { once: true });
+    window.addEventListener("online", onOnline, { once: true });
+    timer = setTimeout(finish, delay);
+  });
   document.addEventListener("visibilitychange", () => {
     if (running && document.visibilityState === "visible") acquireWakeLock();
   });
@@ -977,16 +1001,31 @@
             let attempts = 0;
             while (remaining > 0 && running) {
               let delivered = 0;
+              const requestAborter = new AbortController();
+              const abortRequest = () => requestAborter.abort(
+                aborter.signal.reason || new DOMException("Aborted", "AbortError")
+              );
+              let idleTimer;
+              const armIdleTimer = () => {
+                clearTimeout(idleTimer);
+                idleTimer = setTimeout(() => requestAborter.abort(
+                  new DOMException("Response timed out", "TimeoutError")
+                ), REQUEST_IDLE_TIMEOUT_MS);
+              };
+              aborter.signal.addEventListener("abort", abortRequest, { once: true });
+              if (aborter.signal.aborted) abortRequest();
               try {
+                armIdleTimer();
                 const res = await fetch(ENDPOINT + remaining, {
                   cache: "no-store",
-                  signal: aborter.signal,
+                  signal: requestAborter.signal,
                 });
                 if (!res.ok || !res.body) throw new Error("http " + res.status);
                 const reader = res.body.getReader();
                 for (;;) {
                   const { done, value } = await reader.read();
                   if (done) break;
+                  armIdleTimer();
                   const size = value.byteLength;
                   delivered += size;
                   received += size;
@@ -1000,16 +1039,18 @@
                 attempts = 0; // 一部受信できたら、残りの再試行回数をリセット
               } catch (err) {
                 remaining -= delivered;
-                if (err && err.name === "AbortError") throw err;
+                // 個別リクエストのタイムアウトと、利用者による全体中断を区別する。
+                if (aborter.signal.aborted) throw (
+                  aborter.signal.reason || new DOMException("Aborted", "AbortError")
+                );
                 if (remaining <= 0) break;
                 if (++attempts >= REQUEST_RETRIES) throw err;
-                await new Promise((resolve, reject) => {
-                  const timer = setTimeout(resolve, Math.min(2000, 250 * attempts));
-                  aborter.signal.addEventListener("abort", () => {
-                    clearTimeout(timer);
-                    reject(aborter.signal.reason || new DOMException("Aborted", "AbortError"));
-                  }, { once: true });
-                });
+                statusEl.textContent = "通信の回復を待っています…（自動で再開します）";
+                await waitForRetry(attempts, aborter.signal);
+                if (running) statusEl.textContent = "チェック中…";
+              } finally {
+                clearTimeout(idleTimer);
+                aborter.signal.removeEventListener("abort", abortRequest);
               }
             }
           }
